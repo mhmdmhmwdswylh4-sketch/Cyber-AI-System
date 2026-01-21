@@ -19,11 +19,17 @@ services:
     volumes:
       - ./worker:/worker
       - /var/run/docker.sock:/var/run/docker.sock
-    command: sh -c "pip install celery redis docker && celery -A tasks worker"
+    command: sh -c "pip install celery redis docker google-generativeai && celery -A tasks worker --loglevel=info"
     restart: always
 
   kali:
     image: kalilinux/kali-rolling
     container_name: cyber_kali
+    tty: true
+    privileged: true
+    volumes:
+      - ./kali/tools:/tools
+      - ./kali/results:/results
+    # تثبيت جميع الأدوات المذكورة في المستند (صفحة 7)
+    command: sh -c "apt update && apt install -y nmap sqlmap nikto dirsearch ffuf metasploit-framework netcat-traditional && sleep infinity"
     restart: always
-    command: sh -c "apt update && apt install -y nmap && sleep infinity"
