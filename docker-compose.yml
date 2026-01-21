@@ -8,8 +8,7 @@ services:
   backend:
     image: python:3.11-slim
     container_name: cyber_backend
-    volumes:
-      - ./backend:/app
+    volumes: [./backend:/app]
     command: sh -c "pip install fastapi uvicorn celery redis && uvicorn main:app --host 0.0.0.0 --port 8000"
     restart: always
 
@@ -19,17 +18,19 @@ services:
     volumes:
       - ./worker:/worker
       - /var/run/docker.sock:/var/run/docker.sock
-    command: sh -c "pip install celery redis docker google-generativeai && celery -A tasks worker --loglevel=info"
+    command: sh -c "pip install celery redis docker google-generativeai && celery -A tasks worker"
     restart: always
 
   kali:
     image: kalilinux/kali-rolling
     container_name: cyber_kali
     tty: true
-    privileged: true
-    volumes:
-      - ./kali/tools:/tools
-      - ./kali/results:/results
-    # تثبيت جميع الأدوات المذكورة في المستند (صفحة 7)
-    command: sh -c "apt update && apt install -y nmap sqlmap nikto dirsearch ffuf metasploit-framework netcat-traditional && sleep infinity"
+    privileged: true # ضروري للتعامل مع كروت الشبكة والـ WiFi
+    network_mode: "host" # يسمح للأدوات بالوصول للشبكة الفيزيائية
+    command: >
+      sh -c "apt update && apt install -y 
+      nmap sqlmap nikto dirsearch ffuf 
+      metasploit-framework burpsuite netcat-traditional
+      aircrack-ng pixiewps reaver wifite 
+      bettercap masscan && sleep infinity"
     restart: always

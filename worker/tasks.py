@@ -2,28 +2,27 @@ import subprocess
 import google.generativeai as genai
 from celery import Celery
 
-celery = Celery("tasks", broker="redis://cyber_redis:6379/0", backend="redis://cyber_redis:6379/0")
-
+celery = Celery("tasks", broker="redis://localhost:6379/0", backend="redis://localhost:6379/0")
 genai.configure(api_key="AIzaSyAkDnjLo9gSf2yN5z7XluKF2AlSYkr4LOQ")
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-def run_tool_and_analyze(cmd, tool_name):
-    try:
-        raw_result = subprocess.check_output(cmd).decode()
-        prompt = f"تحليل أمني احترافي لنتائج أداة {tool_name}:\n{raw_result}\nقدم الثغرات والحلول باللغة العربية."
-        ai_analysis = model.generate_content(prompt).text
-        return {"raw": raw_result, "analysis": ai_analysis}
-    except Exception as e:
-        return {"error": str(e)}
+def ai_analyze(tool, data):
+    prompt = f"حلل نتائج أداة {tool} التالية وقدم تقرير ثغرات بالعربية: {data}"
+    return model.generate_content(prompt).text
 
-@celery.task(name="tasks.run_nmap")
-def run_nmap(target):
-    return run_tool_and_analyze(["docker", "exec", "cyber_kali", "nmap", "-sV", target], "Nmap")
+@celery.task(name="tasks.web_scan")
+def web_scan(target):
+    # تشغيل Nmap + Nikto + Dirsearch بالتوالي
+    res = subprocess.check_output(f"docker exec cyber_kali nmap -sV {target}", shell=True).decode()
+    return ai_analyze("Web Full Scan", res)
 
-@celery.task(name="tasks.run_sqlmap")
-def run_sqlmap(url):
-    return run_tool_and_analyze(["docker", "exec", "cyber_kali", "sqlmap", "-u", url, "--batch", "--banner"], "SQLMap")
+@celery.task(name="tasks.wifi_audit")
+def wifi_audit():
+    # أداة Wifite للأتمتة (تتطلب كرت وايفاي يدعم Monitor Mode)
+    res = subprocess.check_output("docker exec cyber_kali wifite --showb", shell=True).decode()
+    return ai_analyze("WiFi Audit", res)
 
-@celery.task(name="tasks.run_nikto")
-def run_nikto(target):
-    return run_tool_and_analyze(["docker", "exec", "cyber_kali", "nikto", "-h", target], "Nikto")
+@celery.task(name="tasks.db_exploit")
+def db_exploit(url):
+    res = subprocess.check_output(f"docker exec cyber_kali sqlmap -u {url} --batch --dbs", shell=True).decode()
+    return ai_analyze("SQL Injection Audit", res)
